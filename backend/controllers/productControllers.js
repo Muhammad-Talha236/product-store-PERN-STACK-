@@ -1,108 +1,156 @@
-import {sql} from "../config/db.js";
+import { sql } from "../config/db.js";
 
+// GET ALL PRODUCTS
 export const getallProducts = async (req, res) => {
     try {
         const products = await sql`
             SELECT * FROM products
-            ORDER BY created_at DESC
+            ORDER BY created_at DESC;
         `;
-
-        console.log("Fetched products:", products);
 
         res.status(200).json({
             success: true,
-            data: products
+            data: products,
         });
-
     } catch (error) {
-       console.log("error in get all proudct function", error);
-        res.status(500).json({success: false, message: "internal server error"});
+        console.error("Error in getAllProducts:", error);
+
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+        });
     }
 };
+
+// CREATE PRODUCT
 export const createProducts = async (req, res) => {
+    const { name, price, image } = req.body;
 
-    const {name,price,image} = req.body;
-
-    if(!name || !price || !image){
-        return res.status(404).json({success: false, message: "all field required"})
+    if (!name || price == null || !image) {
+        return res.status(400).json({
+            success: false,
+            message: "All fields are required.",
+        });
     }
 
     try {
-            const newproduct = await sql `
-             INSERT INTO products (name,price,image)
-             VALUES ($(name),$(price),$(image))
-             RETURNING *
-            `
-            res.status(201).json({success:true, data: newproduct[0]});
+        const newProduct = await sql`
+            INSERT INTO products (name, price, image)
+            VALUES (${name}, ${price}, ${image})
+            RETURNING *;
+        `;
 
-    } catch (error){
-        console.log("error in create proudct function", error);
-        res.status(500).json({success: false, message: "internal server error"});
+        res.status(201).json({
+            success: true,
+            data: newProduct[0],
+        });
+    } catch (error) {
+        console.error("Error in createProduct:", error);
 
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+        });
     }
-
 };
+
+// GET SINGLE PRODUCT
 export const getProduct = async (req, res) => {
-    const {id} = req.params;
+    const { id } = req.params;
 
-    try{
-            const product = await sql `
-              SELECT * FROM product WHERE id= ${id}
-            `;
+    try {
+        const product = await sql`
+            SELECT * FROM products
+            WHERE id = ${id};
+        `;
 
-            res.status(200),json({success: true, data: product[0]});
+        if (product.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Product not found.",
+            });
+        }
 
+        res.status(200).json({
+            success: true,
+            data: product[0],
+        });
+    } catch (error) {
+        console.error("Error in getProduct:", error);
 
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+        });
     }
-    catch (error){
-        console.log("error in get proudct function", error);
-        res.status(500).json({success: false, message: "internal server error"});
-    }
+};
 
-
-}; 
+// UPDATE PRODUCT
 export const updateProduct = async (req, res) => {
-    const {id}= req.params;
-    const {name,price,image}= req.body;
+    const { id } = req.params;
+    const { name, price, image } = req.body;
 
-    try{
-          const uproduct = await sql`
-                UPDATE products 
-                SET name = ${name},
+    try {
+        const updatedProduct = await sql`
+            UPDATE products
+            SET
+                name = ${name},
                 price = ${price},
                 image = ${image}
-                where id = ${id}
-                RETURNING * 
-          `;
-          if(uProduct.length === 0){
-            return res.status(400).json({
+            WHERE id = ${id}
+            RETURNING *;
+        `;
+
+        if (updatedProduct.length === 0) {
+            return res.status(404).json({
                 success: false,
-                message: "product not found"
+                message: "Product not found.",
             });
-          }
-          res.status(200).json({success:true,data: uproduct[0]});
-    }
-    catch (error){
-        console.log("Error in update function");
-        res.status(500).json({success:false, message: "error in internal server"});
+        }
+
+        res.status(200).json({
+            success: true,
+            data: updatedProduct[0],
+        });
+    } catch (error) {
+        console.error("Error in updateProduct:", error);
+
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+        });
     }
 };
+
+// DELETE PRODUCT
 export const deleteProduct = async (req, res) => {
-     const {id} = req.params;
-     try{
-           const dproduct = await sql `
-             DELETE FROM product WHERE id = ${id}
-             RETURNING *
-           `;
-             if(dProduct.length === 0){
-            return res.status(400).json({
+    const { id } = req.params;
+
+    try {
+        const deletedProduct = await sql`
+            DELETE FROM products
+            WHERE id = ${id}
+            RETURNING *;
+        `;
+
+        if (deletedProduct.length === 0) {
+            return res.status(404).json({
                 success: false,
-                message: "product not found"
+                message: "Product not found.",
             });
-          }
-           res.status(200).json({success: true, data: dproduct})
-     }catch (error){
-        console.log("Error in del function");
-        res.status(500).json({success:false, message: "error in internal server"});
-     }
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Product deleted successfully.",
+            data: deletedProduct[0],
+        });
+    } catch (error) {
+        console.error("Error in deleteProduct:", error);
+
+        res.status(500).json({
+            success: false,
+            message: "Internal Server Error",
+        });
+    }
 };

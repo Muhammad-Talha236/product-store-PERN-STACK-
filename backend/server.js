@@ -4,11 +4,13 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import { sql } from './config/db.js';
+import {aj} from './lib/arcjet.js';
+import { isSpoofedBot } from "@arcjet/inspect";
 import productRoutes from './routes/productsRoutes.js';
 dotenv.config();
 
 const PORT = process.env.PORT || 5000;
-console.log(PORT);
+console.log(PORT    );
 const app = express();
 app.use(cors()); // Enable CORS for all routes
 app.use(helmet()); // helps secure the app by setting various HTTP headers
@@ -18,6 +20,39 @@ app.use(express.json()); // built-in middleware function in Express. It parses i
 //     // console.log(res.getHeaders());
 //     res.send("Hello World");
 // });
+
+app.use(async (req, res, next) => {
+  try {
+    const decision = await aj.protect(req, {
+      requested: 1,
+    });
+
+    if (decision.isDenied()) {
+      if (decision.reason.isRateLimit()) {
+        return res.status(429).json({ error: "Too Many Requests" });
+      }
+
+      if (decision.reason.isBot()) {
+        return res.status(403).json({ error: "No bots allowed" });
+      }
+
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    if (decision.ip.isHosting()) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    if (decision.results.some(isSpoofedBot)) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    next();
+  } catch (error) {
+    console.error("Arcjet Error:", error);
+    next(error);
+  }
+});
 
 app.use('/api/products', productRoutes);
 
